@@ -8,12 +8,13 @@ import jwt
 SECRET_KEY="f1c0a633-3310-4593-b4e0-2e60174ecac1"
 
 def genrateToken(userid):
-    token=jwt.encode({"user":userid,"exp":datetime.datetime.now()+datetime.timedelta(minutes=30)},SECRET_KEY)
+    token=jwt.encode({"user":userid,"exp":datetime.datetime.now()+datetime.timedelta(minutes=30)},key=SECRET_KEY, algorithm="HS512")
     return token
 
 def verify_(token):
     try:
-        data=jwt.decode(token,SECRET_KEY)
+        data=jwt.decode(token,key=SECRET_KEY, algorithm="HS512")
+        print(data)
         return data
-    except:
-        return "Invalid token..."
+    except Exception as e:
+        return f"Invalid token...{e}"

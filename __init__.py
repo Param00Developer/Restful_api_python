@@ -1,10 +1,11 @@
-from flask import Flask,jsonify
+from flask import Flask,jsonify,Response,request
 from db.db import db,configure_db
 from flask_restful import Api, Resource, reqparse, abort, fields, marshal_with
 # from routes.user_routes import user_bp
 from models.clientuser import ClientUser
 from models.clientuser import OpsUser
 from controllers.token_ import genrateToken,verify_
+from controllers.upload import uploadfile,list_,move
 from flask_mail import Mail,Message
 
 
@@ -35,7 +36,8 @@ resource_fields = {
 	'id': fields.String,
 	'uname': fields.String,
 	'email': fields.String,
-	'password': fields.String
+	'password': fields.String,
+	"verified":fields.Integer
 }
 
 
@@ -57,52 +59,20 @@ def sendMail(email,token):
 	mail.send(msg) 
 	return 'Sent'
 
-@app.route('/')
-def health():
-    return 'Server is Working Fine....'
+
 
 class userclient(Resource):
-	@marshal_with(resource_fields)
 	def get(self):
 		args = user_login_args.parse_args()
 		result = ClientUser.query.filter_by(id=args["uid"]).first()
 		if not result:
 			abort(404, message="Could not find user with that id")
 		elif(result.password==args["password"]):
-			return result
+			return jsonify({"To list files use :":f"http://127.0.0.1:5000/user/{args['uid']}","To download files :":"http://127.0.0.1:5000/user/download/<filename>"})
 		else:
 			return "Incorrect Password.."
-
-	# @marshal_with(resource_fields)
-	# def post(self, user_id):
-	# 	args = user_put_args.parse_args()
-	# 	result = ClientUser.query.filter_by(id=user_id).first()
-	# 	if result:
-	# 		abort(409, message="user id taken...")
-			
-	# 	user = ClientUser(id=user_id, uname=args['name'], views=args['views'], likes=args['likes'])
-	# 	db.session.add(user)
-	# 	db.session.commit()
-	# 	return user, 201
-
-	# @marshal_with(resource_fields)
-	# def patch(self, user_id):
-	# 	args = user_update_args.parse_args()
-	# 	result = ClientUser.query.filter_by(id=user_id).first()
-	# 	if not result:
-	# 		abort(404, message="user doesn't exist, cannot update")
-
-	# 	if args['name']:
-	# 		result.name = args['name']
-	# 	if args['views']:
-	# 		result.views = args['views']
-	# 	if args['likes']:
-	# 		result.likes = args['likes']
-
-	# 	db.session.commit()
-
-	# 	return result
-
+		
+	# Delete all UserClients
 	def delete(self, user_id):
 		try:
 			ClientUser.query.delete()
@@ -116,7 +86,6 @@ class userclient(Resource):
 class SignUp(Resource):
 	def post(self):
 		try:
-
 			args=user_put_args.parse_args()	
 			user=ClientUser(uname=args['uname'], email=args['email'], password=args['password'])
 			db.session.add(user)
@@ -136,6 +105,41 @@ class SignUp(Resource):
 		if not result:
 			abort(404, message="No user available..")
 		return result
+	
+# Api defination o ops user to login("GET") and Signup("POST")
+class opsclient(Resource):
+	def get(self):
+		args = user_login_args.parse_args()
+		result = OpsUser.query.filter_by(id=args["uid"]).first()
+		if not result:
+			abort(404, message="Invalid ops user ..")
+		elif(result.password==args["password"]):
+			return jsonify({"To upload a file :": f"http://127.0.0.1:5000/opsuser/upload/{args['uid']}"})
+		else:
+			abort(message="Incorrect Password..")
+	def post(self):
+		try:
+			args=user_put_args.parse_args()	
+			opuser=OpsUser(uname=args['uname'], email=args['email'], password=args['password'])
+			db.session.add(opuser)
+			db.session.commit()
+			print(opuser)
+			return f"Ops user created successfully..Please login : http://127.0.0.1:5000/opsuser ['GET'] with uid and password"
+		except Exception as e:
+			return f"Error_occured : {e}"
+
+# api for user signup
+api.add_resource(SignUp, "/signup")
+# api for user login
+api.add_resource(userclient, "/userlogin")
+# api for opsuser login
+api.add_resource(opsclient, "/opsuser")
+
+#Common health check 
+@app.route('/')
+def health():
+    return 'Server is Working Fine....'
+
 
 # For demo purpose to delete all data only for developer use
 @app.route("/deleteall",methods=["DELETE"])
@@ -145,30 +149,43 @@ def delete():
 	db.session.commit()
 	return 'All data was removed..', 204
 
-
-@app.route("/verify/<string:token>",methods=["GET"])
+# verify the link send to email
+@app.route("/verify/<token>",methods=["GET"])
 def valid(token):
-        data=verify_(token)
-		result = ClientUser.query.filter_by(id=data.user).first()
-		
-        return 'Email verified...', 204
+	data=verify_(token)
+	user =ClientUser.query.get(data["user"])
+	user.verified=1
+	db.session.commit()
+	print("User Data :",user)
+	return "Email Verified..",204
 
+# Upload file only by ops user
+@app.route("/opsuser/upload/<id>",methods=["POST"])
+def upload(id):
+	result = OpsUser.query.filter_by(id=id).first()
+	if not result:
+		abort(404, message="Invalid ops user ..")
+	else:
+		return uploadfile(request.files["file"],id)
 	
-
-
+@app.route("/userlogin/listall/<id>",methods=["GET"])		
+def listall(id):
+		result = ClientUser.query.filter_by(id=id).first()
+		if not result:
+			return "Could not find user with that id .."
+		else:
+			res="Files Available to download :\n"+list_()+f"\nTo Download file :http://127.0.0.1:5000/userlogin/{id}/<filename>"
+			return res
 		
+@app.route("/userlogin/<id>/<filename>",methods=["GET"])		
+def download(id,filename):
+		result = ClientUser.query.filter_by(id=id).first()
+		if not result:
+			return "Could not find user with that id .."
+		else:
+			move(filename)
+			return "File downloaded ..Check your download folder"
 		
-
-
-# api for user signup
-api.add_resource(SignUp, "/signup")
-# api for user login
-api.add_resource(userclient, "/userlogin")
 
 if __name__ == "__main__":
 	app.run(debug=True)
-
-# app.register_blueprint(user_bp, url_prefix='/api')
-
-if __name__ == '__main__':
-    app.run(debug=True)

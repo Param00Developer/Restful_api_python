@@ -33,3 +33,9 @@ class OpsUser(db.Model):
     opsname = Column(String(50), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
+
+    def __init__(self,uname,email,password):
+        self.opsname=uname
+        self.email=email
+        self.password=password
+

@@ -4,7 +4,7 @@ from flask_restful import Api, Resource, reqparse, abort, fields, marshal_with
 # from routes.user_routes import user_bp
 from models.clientuser import ClientUser
 from models.clientuser import OpsUser
-from .controllers.token_ import genrateToken
+from controllers.token_ import genrateToken
 from flask_mail import Mail,Message
 
 
@@ -72,36 +72,6 @@ class userclient(Resource):
 			return result
 		else:
 			return "Incorrect Password.."
-
-	# @marshal_with(resource_fields)
-	# def post(self, user_id):
-	# 	args = user_put_args.parse_args()
-	# 	result = ClientUser.query.filter_by(id=user_id).first()
-	# 	if result:
-	# 		abort(409, message="user id taken...")
-			
-	# 	user = ClientUser(id=user_id, uname=args['name'], views=args['views'], likes=args['likes'])
-	# 	db.session.add(user)
-	# 	db.session.commit()
-	# 	return user, 201
-
-	# @marshal_with(resource_fields)
-	# def patch(self, user_id):
-	# 	args = user_update_args.parse_args()
-	# 	result = ClientUser.query.filter_by(id=user_id).first()
-	# 	if not result:
-	# 		abort(404, message="user doesn't exist, cannot update")
-
-	# 	if args['name']:
-	# 		result.name = args['name']
-	# 	if args['views']:
-	# 		result.views = args['views']
-	# 	if args['likes']:
-	# 		result.likes = args['likes']
-
-	# 	db.session.commit()
-
-	# 	return result
 
 	def delete(self, user_id):
 		try:
