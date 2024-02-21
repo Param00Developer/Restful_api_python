@@ -1,12 +1,8 @@
 from sqlalchemy import Column, Integer, String,Boolean
 from sqlalchemy.dialects.postgresql import UUID
-# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import text as sa_text
 from db.db import db
 import uuid
-
-
-
 
 class ClientUser(db.Model):
     __tablename__ = "client_users"
@@ -21,8 +17,7 @@ class ClientUser(db.Model):
         self.uname=uname
         self.email=email
         self.password=password
-
-        
+    
     def __repr__(self):
         return f"Name : {self.uname}, ID :{self.id}"
     
